@@ -116,4 +116,5 @@ iface = gr.Interface(
 )
 
 if __name__ == "__main__":
-    iface.launch(share=True)  # Ensure that this is the last statement in the script
+    iface.launch()
+
