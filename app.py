@@ -108,13 +108,17 @@ def get_answer(question):
 import gradio as gr
 
 # Create Gradio interface
-iface = gr.Interface(
-    fn=get_answer,
-    inputs=gr.inputs.Textbox(lines=2, placeholder="Ask a question about the book..."),
-    outputs="text",
-    title="AI-Powered Book Chatbot",
-    description="Ask questions about the book, and the chatbot will find relevant answers for you!"
-)
+if __name__ == "__main__":
+    iface = gr.Interface(
+        fn=get_answer,
+        inputs=gr.inputs.Textbox(lines=2, placeholder="Ask a question about the book..."),
+        outputs="text",
+        title="AI-Powered Book Chatbot",
+        description="Ask questions about the book, and the chatbot will find relevant answers for you!"
+    )
+
+    iface.launch(share=True)  # This makes the app publicly accessible
+
 
 # Run the app
 iface.launch()
