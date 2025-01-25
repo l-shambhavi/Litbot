@@ -8,25 +8,39 @@ import tkinter as tk
 from tkinter import scrolledtext, messagebox
 from PIL import Image, ImageTk
 import io
-import os
+import requests
 import re
+import os
 
 # Download NLTK resources
 nltk.download('punkt')
-
+nltk.download('punkt_tab')
 # Function to clean text
 def clean_text(text):
     text = re.sub(r'\s+', ' ', text)  # Replace multiple spaces/newlines with a single space
     text = re.sub(r'[^\x20-\x7E]', '', text)  # Remove non-printable ASCII characters
     return text.strip()
 
-# Paths to PDFs
-pdf_paths = [
-    r"D:\sem-5\machine_learning\Flow_Interaction_Graph_Analysis_Unknown_Encrypted_Malicious_Traffic_Detection.pdf",
-    r"D:\sem-5\machine_learning\AI.pdf",
-    r"D:\sem-5\machine_learning\Explainable_AI_for_Cheating_Detection_and_Churn_Prediction_in_Online_Games.pdf",
-    r"D:\sem-5\machine_learning\Scientific Programming - 2022 - Abro - Artificial Intelligence Enabled Effective Fault Predict.pdf"
-]
+# URL of the book (PDF file)
+book_url = "https://myweb.sabanciuniv.edu/rdehkharghani/files/2016/02/The-Morgan-Kaufmann-Series-in-Data-Management-Systems-Jiawei-Han-Micheline-Kamber-Jian-Pei-Data-Mining.-Concepts-and-Techniques-3rd-Edition-Morgan-Kaufmann-2011.pdf"
+
+# Function to download the book
+def download_book(url, filename):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Check for HTTP errors
+        with open(filename, 'wb') as file:
+            file.write(response.content)
+        print(f"Book downloaded successfully: {filename}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading the book: {e}")
+
+# Specify the filename to save the book
+book_filename = "downloaded_book.pdf"
+
+# Call the function to download the book
+download_book(book_url, book_filename)
+
 # Function to extract text and images from PDF
 def extract_text_and_images_from_pdf(pdf_file):
     text = ''
@@ -42,37 +56,24 @@ def extract_text_and_images_from_pdf(pdf_file):
                 # Only proceed if images exist on the page
                 if page.images:
                     for image_info in page.images:
-                        # Check if bbox exists
-                        if 'bbox' in image_info:
-                            img_bbox = image_info["bbox"]
+                        img_bbox = image_info.get("bbox")
+                        if img_bbox:
                             try:
                                 image = page.within_bbox(img_bbox).to_image()
-                                images[page_number] = image
+                                images[page_number] = image.original
                             except Exception as e:
                                 print(f"Error extracting image on page {page_number}: {e}")
-                        else:
-                            print(f"No 'bbox' found for image on page {page_number}")
                 else:
                     print(f"No images on page {page_number}")
     except Exception as e:
         print(f"Error while extracting text/images: {e}")
     return text, images
 
+# Extract text and images from the downloaded book
+book_text, book_images = extract_text_and_images_from_pdf(book_filename)
 
-# Extract text and images from all books
-book_texts = []
-book_images = []
-for pdf_path in pdf_paths:
-    if os.path.exists(pdf_path):
-        text, images = extract_text_and_images_from_pdf(pdf_path)
-        book_texts.append(text)
-        book_images.append(images)
-    else:
-        print(f"File not found: {pdf_path}")
-
-# Combine all book texts into one
-combined_book_text = "\n".join(book_texts)
-book_sentences = [clean_text(sentence) for sentence in nltk.sent_tokenize(combined_book_text) if clean_text(sentence)]
+# Prepare sentences for embedding
+book_sentences = [clean_text(sentence) for sentence in nltk.sent_tokenize(book_text) if clean_text(sentence)]
 
 # Load the pre-trained sentence transformer model
 print("Generating sentence embeddings...")
@@ -89,7 +90,7 @@ index.add(np.array(embeddings))
 def search_book(query, num_sentences=5):
     query_embedding = model.encode([query])
     distances, indices = index.search(np.array(query_embedding), k=num_sentences)
-    return [(book_sentences[i], i // len(book_sentences[0])) for i in indices[0]]  # Return sentences and page numbers
+    return [(book_sentences[i], i) for i in indices[0]]  # Return sentences and their indices
 
 # Load a pre-trained model for question-answering
 qa_pipeline = pipeline('question-answering', model='distilbert/distilbert-base-cased-distilled-squad')
@@ -125,8 +126,7 @@ def ask_question():
     # Step 2: Display relevant sentences with improved formatting and spacing
     output_text.insert(tk.END, "Relevant Sentences:\n\n", "underline")
     
-    for i, (sentence, page) in enumerate(relevant_sentences_and_pages, start=1):
-        # Ensure spacing between words is correct
+    for i, (sentence, index) in enumerate(relevant_sentences_and_pages, start=1):
         clean_sentence = re.sub(r'\s+', ' ', sentence)
         output_text.insert(tk.END, f"{i}. {clean_sentence}\n\n", "regular")
     
@@ -136,22 +136,21 @@ def ask_question():
     
     output_text.insert(tk.END, f"\nGenerated Answer:\n{answer}\n\n", "italic")
     
-    # Step 4: Display relevant page numbers
+    # Step 4: Display relevant page numbers (indices)
     page_numbers = {item[1] + 1 for item in relevant_sentences_and_pages}
     output_text.insert(tk.END, f"Relevant content found on pages: {sorted(page_numbers)}\n\n", "bold")
 
     # Step 5: Display relevant images (if available)
-    for sentence, page in relevant_sentences_and_pages:
-        if page in book_images[0]:
-            image_data = book_images[0][page].original
-            img = Image.open(io.BytesIO(image_data))
+    for _, page in relevant_sentences_and_pages:
+        if page in book_images:
+            img_data = book_images[page]
+            img = Image.open(io.BytesIO(img_data))
             img.thumbnail((250, 250))
             img_tk = ImageTk.PhotoImage(img)
             image_label.configure(image=img_tk)
             image_label.image = img_tk
         else:
             image_label.configure(image='')  # Clear the image if none is available
-
 
 # Create the UI using tkinter
 root = tk.Tk()
