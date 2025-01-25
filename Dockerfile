@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     tesseract-ocr \
     libsm6 libxext6 libxrender-dev \
+    gcc g++ \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,7 +26,8 @@ RUN pip install --no-cache-dir \
     faiss-cpu \
     transformers \
     Pillow \
-    requests
+    requests \
+    gradio
 
 # Download necessary NLTK resources
 RUN python -c "import nltk; nltk.download('punkt')"
