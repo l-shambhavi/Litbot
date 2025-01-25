@@ -185,3 +185,4 @@ xlrd==0.7.1
 xlwt==0.7.2
 yarl==1.13.1
 zipp==3.20.2
+Pillow
