@@ -1,3 +1,4 @@
+aiofiles==23.2.1
 aiohappyeyeballs==2.4.3
 aiohttp==3.10.9
 aiosignal==1.3.1
@@ -31,7 +32,8 @@ dnspython==2.7.0
 durationpy==0.9
 Elixir==0.7.1
 faiss-cpu==1.8.0.post1
-fastapi==0.115.0
+fastapi==0.115.7
+ffmpy==0.5.0
 filelock==3.16.0
 Flask==3.0.2
 flatbuffers==24.3.25
@@ -41,6 +43,8 @@ gitdb==4.0.11
 GitPython==3.1.43
 google-auth==2.35.0
 googleapis-common-protos==1.65.0
+gradio==5.13.1
+gradio_client==1.6.0
 greenlet==3.1.1
 grpcio==1.66.2
 h11==0.14.0
@@ -48,7 +52,7 @@ html5lib==1.1
 httpcore==1.0.6
 httptools==0.6.1
 httpx==0.27.2
-huggingface-hub==0.24.7
+huggingface-hub==0.27.1
 humanfriendly==10.0
 idna==3.6
 importlib_metadata==8.4.0
@@ -113,6 +117,8 @@ pydantic==2.9.2
 pydantic-settings==2.5.2
 pydantic_core==2.23.4
 pydeck==0.9.1
+pydub==0.25.1
+pygame==2.6.1
 PyGetWindow==0.0.9
 Pygments==2.18.0
 pyinstaller==6.11.1
@@ -129,6 +135,7 @@ PyRect==0.2.0
 PyScreeze==0.1.30
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
+python-multipart==0.0.20
 pytweening==1.2.0
 pytz==2024.2
 pywhatkit==5.4
@@ -142,9 +149,12 @@ requests-toolbelt==1.0.0
 rich==13.9.2
 rpds-py==0.20.0
 rsa==4.9
+ruff==0.9.3
+safehttpx==0.1.6
 safetensors==0.4.5
 scikit-learn==1.5.2
 scipy==1.14.1
+semantic-version==2.10.0
 sentence-transformers==3.1.0
 setuptools==75.1.0
 shellingham==1.5.4
@@ -155,7 +165,7 @@ soupsieve==2.5
 SQLAlchemy==2.0.37
 sqlalchemy-migrate==0.11.0
 sqlparse==0.5.1
-starlette==0.38.6
+starlette==0.45.3
 streamlit==1.39.0
 sympy==1.13.2
 Tempita==0.5.2
@@ -163,6 +173,7 @@ tenacity==8.5.0
 threadpoolctl==3.5.0
 tokenizers==0.19.1
 toml==0.10.2
+tomlkit==0.13.2
 torch==2.4.1
 tornado==6.4.1
 tqdm==4.66.5
@@ -185,4 +196,3 @@ xlrd==0.7.1
 xlwt==0.7.2
 yarl==1.13.1
 zipp==3.20.2
-Pillow
