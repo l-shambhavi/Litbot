@@ -36,4 +36,4 @@ RUN python -c "import nltk; nltk.download('punkt')"
 EXPOSE 8080
 
 # Set the command to run your script
-CMD ["python", "app.py"]
+CMD ["python", "-u", "app.py"]

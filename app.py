@@ -1,119 +1,134 @@
-import gradio as gr
 import pdfplumber
 import nltk
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import faiss
 from transformers import pipeline
+import streamlit as st
+from PIL import Image
+import io
 import requests
 import re
+import os
 
 # Download NLTK resources
-nltk.download('punkt')
+nltk.download("punkt")
 
 # Function to clean text
 def clean_text(text):
-    text = re.sub(r'\s+', ' ', text)  # Replace multiple spaces/newlines with a single space
-    text = re.sub(r'[^\x20-\x7E]', '', text)  # Remove non-printable ASCII characters
+    text = re.sub(r"\s+", " ", text)  # Replace multiple spaces/newlines with a single space
+    text = re.sub(r"[^\x20-\x7E]", "", text)  # Remove non-printable ASCII characters
     return text.strip()
 
+
 # URL of the book (PDF file)
-book_url = "https://myweb.sabanciuniv.edu/rdehkharghani/files/2016/02/The-Morgan-Kaufmann-Series-in-Data-Management-Systems-Jiawei-Han-Micheline-Kamber-Jian-Pei-Data-Mining.-Concepts-and-Techniques-3rd-Edition-Morgan-Kaufmann-2011.pdf"
+BOOK_URL = "https://myweb.sabanciuniv.edu/rdehkharghani/files/2016/02/The-Morgan-Kaufmann-Series-in-Data-Management-Systems-Jiawei-Han-Micheline-Kamber-Jian-Pei-Data-Mining.-Concepts-and-Techniques-3rd-Edition-Morgan-Kaufmann-2011.pdf"
+BOOK_FILENAME = "downloaded_book.pdf"
 
-# Function to download the book
-def download_book(url, filename):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # Check for HTTP errors
-        with open(filename, 'wb') as file:
-            file.write(response.content)
-        print(f"Book downloaded successfully: {filename}")
-    except requests.exceptions.RequestException as e:
-        print(f"Error downloading the book: {e}")
+# Download the book if not already present
+if not os.path.exists(BOOK_FILENAME):
+    st.info("Downloading the book...")
+    response = requests.get(BOOK_URL)
+    with open(BOOK_FILENAME, "wb") as file:
+        file.write(response.content)
+    st.success("Book downloaded successfully!")
 
-# Specify the filename to save the book
-book_filename = "downloaded_book.pdf"
+# Extract text and images from PDF
+@st.cache_data
+def extract_text_and_images(pdf_file):
+    text = ""
+    images = {}
+    with pdfplumber.open(pdf_file) as pdf:
+        for page_number, page in enumerate(pdf.pages):
+            # Extract text
+            if page.extract_text():
+                text += clean_text(page.extract_text()) + "\n"
+            # Extract images
+            if page.images:
+                for img_info in page.images:
+                    try:
+                        img_bbox = img_info.get("bbox")
+                        if img_bbox:
+                            image = page.within_bbox(img_bbox).to_image()
+                            images[page_number] = image.original
+                    except Exception:
+                        continue
+    return text, images
 
-# Call the function to download the book
-download_book(book_url, book_filename)
 
-# Function to extract text from PDF
-def extract_text_from_pdf(pdf_file):
-    text = ''
-    try:
-        with pdfplumber.open(pdf_file) as pdf:
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    clean_page_text = clean_text(page_text)
-                    text += clean_page_text + '\n'
-    except Exception as e:
-        print(f"Error while extracting text: {e}")
-    return text
-
-# Extract text from the downloaded book
-book_text = extract_text_from_pdf(book_filename)
+# Load data
+book_text, book_images = extract_text_and_images(BOOK_FILENAME)
 
 # Prepare sentences for embedding
-book_sentences = [clean_text(sentence) for sentence in nltk.sent_tokenize(book_text) if clean_text(sentence)]
+book_sentences = [
+    clean_text(sentence)
+    for sentence in nltk.sent_tokenize(book_text)
+    if clean_text(sentence)
+]
 
-# Load the pre-trained sentence transformer model
-model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+# Load sentence transformer model
+st.info("Generating sentence embeddings...")
+embedding_model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
+embeddings = embedding_model.encode(book_sentences)
 
-# Generate embeddings for book sentences
-embeddings = model.encode(book_sentences)
+# Create FAISS index
+faiss_index = faiss.IndexFlatL2(embeddings.shape[1])
+faiss_index.add(np.array(embeddings))
 
-# Create FAISS index for fast similarity search
-index = faiss.IndexFlatL2(embeddings.shape[1])
-index.add(np.array(embeddings))
-
-# Function to search the book for relevant sentences
+# Search book for relevant sentences
 def search_book(query, num_sentences=5):
-    query_embedding = model.encode([query])
-    distances, indices = index.search(np.array(query_embedding), k=num_sentences)
-    return [(book_sentences[i], i) for i in indices[0]]  # Return sentences and their indices
+    query_embedding = embedding_model.encode([query])
+    distances, indices = faiss_index.search(np.array(query_embedding), k=num_sentences)
+    return [(book_sentences[i], i) for i in indices[0]]
 
-# Load a pre-trained model for question-answering
-qa_pipeline = pipeline('question-answering', model='distilbert/distilbert-base-cased-distilled-squad')
 
-# Function to get the final answer from the chatbot
-def get_answer(question):
-    # Step 1: Search for relevant sentences
-    relevant_sentences_and_pages = search_book(question, num_sentences=3)
+# Load QA model
+qa_pipeline = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
 
-    if not relevant_sentences_and_pages:
-        return "No relevant sentences found."
-    
-    # Combine the context
-    combined_context = " ".join([item[0] for item in relevant_sentences_and_pages])
-    
-    # Step 2: Use QA model to answer based on the context
+def get_answer(question, context):
     try:
-        result = qa_pipeline(question=question, context=combined_context)
-        answer = result['answer']
+        result = qa_pipeline(question=question, context=context)
+        return result["answer"]
     except Exception as e:
-        print(f"Error in get_answer: {e}")
-        answer = "Sorry, I couldn't find an answer."
-    
-    # Step 3: Prepare the response
-    response = f"Question: {question}\n\n"
-    response += "Relevant Sentences:\n"
-    for i, (sentence, index) in enumerate(relevant_sentences_and_pages, start=1):
-        response += f"{i}. {sentence}\n"
-    response += f"\nAnswer: {answer}"
-    return response
+        return f"Error in QA pipeline: {e}"
 
-# Gradio interface
-import gradio as gr
 
-# Ensure this is the last call
-iface = gr.Interface(
-    fn=get_answer,
-    inputs=gr.inputs.Textbox(lines=2, placeholder="Ask a question about the book..."),
-    outputs="text",
-    title="AI-Powered Book Chatbot",
-    description="Ask questions about the book, and the chatbot will find relevant answers for you!"
-)
+# Streamlit App
+st.title("📚 AI-Powered Book Chatbot")
+st.sidebar.header("About")
+st.sidebar.write("This chatbot uses AI to answer questions from the book: *Data Mining: Concepts and Techniques*.")
 
-if __name__ == "__main__":
-    iface.launch(server_name="0.0.0.0", server_port=8080)
+# User Input
+question = st.text_input("🔍 Ask your question:", "")
+
+if question:
+    st.subheader("Your Question:")
+    st.write(question)
+
+    # Retrieve relevant sentences
+    results = search_book(question, num_sentences=5)
+
+    if results:
+        st.subheader("📖 Relevant Sentences:")
+        for i, (sentence, idx) in enumerate(results, start=1):
+            st.markdown(f"**{i}.** {sentence}")
+
+        # Combine sentences for QA
+        context = " ".join([sentence for sentence, _ in results])
+        answer = get_answer(question, context)
+
+        st.subheader("✅ Answer:")
+        st.success(answer)
+
+        # Display relevant pages and images
+        pages = {idx + 1 for _, idx in results}
+        st.subheader("📄 Relevant Pages:")
+        st.write(sorted(pages))
+
+        for page in pages:
+            if page - 1 in book_images:
+                img_data = book_images[page - 1]
+                img = Image.open(io.BytesIO(img_data))
+                st.image(img, caption=f"Image from page {page}")
+    else:
+        st.warning("No relevant sentences found. Try rephrasing your query.")
