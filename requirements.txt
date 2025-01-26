@@ -14,7 +14,7 @@ beautifulsoup4==4.12.3
 blinker==1.7.0
 build==1.2.2.post1
 cachetools==5.5.0
-Camelot==12.6.29
+camelot>=12.6.29
 certifi==2024.2.2
 cffi==1.17.1
 chardet==5.2.0
@@ -162,7 +162,7 @@ six==1.16.0
 smmap==5.0.1
 sniffio==1.3.1
 soupsieve==2.5
-SQLAlchemy==2.0.37
+SQLAlchemy<0.8.0
 sqlalchemy-migrate==0.11.0
 sqlparse==0.5.1
 starlette==0.45.3
