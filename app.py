@@ -15,7 +15,7 @@ nltk.download("punkt")
 
 def clean_text(text):
     text = re.sub(r"\s+", " ", text)  
-    text = re.sub(r"[^\x20-\x7E]", "", text) 
+    text = re.sub(r"[^\x20-\x7E]", "", text)  
     return text.strip()
 
 BOOK_URL = "https://myweb.sabanciuniv.edu/rdehkharghani/files/2016/02/The-Morgan-Kaufmann-Series-in-Data-Management-Systems-Jiawei-Han-Micheline-Kamber-Jian-Pei-Data-Mining.-Concepts-and-Techniques-3rd-Edition-Morgan-Kaufmann-2011.pdf"
@@ -55,6 +55,7 @@ book_sentences = [
     clean_text(sentence)
     for sentence in nltk.sent_tokenize(book_text)
     if clean_text(sentence)
+]
 
 st.info("Generating sentence embeddings...")
 embedding_model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
